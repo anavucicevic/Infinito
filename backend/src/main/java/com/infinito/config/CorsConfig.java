@@ -11,9 +11,10 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
                 .allowedOrigins(
-                        "http://localhost:5173",
-                        "http://192.168.0.39:5173"
-                )
+        "http://localhost:5173",
+        "http://192.168.0.39:5173",
+        "https://infinito-t31m.onrender.com"
+)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*");
     }
