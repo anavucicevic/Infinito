@@ -16,7 +16,8 @@ import com.infinito.booking.Booking;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
-
+import java.io.ByteArrayInputStream;
+import java.util.Base64;
 import java.io.InputStream;
 import java.time.ZoneId;
 import java.util.List;
@@ -104,7 +105,16 @@ String meetLink = b.online ? defaultMeetLink : null;
 }
 
     private Calendar buildCalendarService() throws Exception {
-        InputStream credentialsStream = new ClassPathResource(serviceAccountPath).getInputStream();
+        String encodedCredentials = System.getenv("GOOGLE_SERVICE_ACCOUNT_BASE64");
+
+InputStream credentialsStream;
+
+if (encodedCredentials != null && !encodedCredentials.isBlank()) {
+    byte[] decoded = Base64.getDecoder().decode(encodedCredentials);
+    credentialsStream = new ByteArrayInputStream(decoded);
+} else {
+    credentialsStream = new ClassPathResource(serviceAccountPath).getInputStream();
+}
 
         GoogleCredentials credentials = GoogleCredentials
                 .fromStream(credentialsStream)
