@@ -1,0 +1,25 @@
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Backend
+backend/target/
+
+# Secrets
+backend/src/main/resources/google/service-account.json
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+# Local database
+backend/data/
+# Logs
+*.log
+
+# Backup / old frontend files
+frontend/src/*.old.jsx
+frontend/src/*.backup.css
+frontend/src/*before-redesign.css
+frontend/src/*messy-backup.css
+frontend/src/*.old.css
