@@ -490,7 +490,7 @@ async function adminLogin(e) {
 <div className="miniStats">
   <div><b>1:1</b><span>individualan rad</span></div>
   <div><b>60/90</b><span>minuta po izboru</span></div>
-  <div><b>Online / uživo</b><span>način održavanja</span></div>
+  <div><b className="miniStatSmaller">Online / uživo</b><span>časovi</span></div>
 </div>
             
           </aside>

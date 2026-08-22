@@ -1512,3 +1512,6 @@ footer h3{
     display:none;
   }
 }
+.miniStatSmaller{
+  font-size:20px !important;
+}
