@@ -93,6 +93,12 @@ if (!slot.startTime.isAfter(LocalDateTime.now().plusHours(4))) {
         int duration = req.duration != null ? req.duration : 90;
 int price = priceFor(req.level, duration);
 
+System.out.println(
+        "BOOKING DEBUG -> level=" + req.level
+        + ", duration=" + duration
+        + ", price=" + price
+);
+
         Booking booking = new Booking();
 
         booking.studentName = req.studentName.trim();
