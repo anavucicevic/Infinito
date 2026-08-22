@@ -487,12 +487,12 @@ async function adminLogin(e) {
               Prvo otkrivamo gde nastaje problem, zatim gradimo razumevanje kroz
               primere, objašnjenja i zadatke. Svaki čas ima jasan cilj i plan za dalje.
             </p>
-
-            <div className="miniStats">
-              <div><b>1:1</b><span>individualan rad</span></div>
-              <div><b>90</b><span>minuta časa</span></div>
-              <div><b>4</b><span>nivoa nastave</span></div>
-            </div>
+<div className="miniStats">
+  <div><b>1:1</b><span>individualan rad</span></div>
+  <div><b>60/90</b><span>minuta po izboru</span></div>
+  <div><b>Online / uživo</b><span>način održavanja</span></div>
+</div>
+            
           </aside>
         </div>
       </header>
