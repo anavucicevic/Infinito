@@ -34,12 +34,12 @@ private String adminPassword;
 
 @GetMapping("/slots")
 public List<LessonSlot> slots() {
-    LocalDateTime now = LocalDateTime.now();
+    LocalDateTime earliestAllowed = LocalDateTime.now().plusHours(4);
 
     return slots.findAll()
             .stream()
-            .filter(slot -> slot.startTime.isAfter(now))
-            .sorted(Comparator.comparing(x -> x.startTime))
+            .filter(slot -> slot.startTime.isAfter(earliestAllowed))
+            .sorted(Comparator.comparing(slot -> slot.startTime))
             .toList();
 }
 
@@ -66,12 +66,11 @@ public List<LessonSlot> slots() {
             Map.of("message", "Ovaj termin trenutno nije dostupan.")
     );
 }
-
-        if (!slot.startTime.isAfter(LocalDateTime.now())) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("message", "Nije moguće rezervisati termin koji je već prošao.")
-            );
-        }
+if (!slot.startTime.isAfter(LocalDateTime.now().plusHours(4))) {
+    return ResponseEntity.badRequest().body(
+            Map.of("message", "Termin je moguće rezervisati najkasnije 4 sata pre početka časa.")
+    );
+}
 
         if (req.studentName == null || req.studentName.isBlank()) {
             return ResponseEntity.badRequest().body(
@@ -100,10 +99,17 @@ public List<LessonSlot> slots() {
         booking.phone = null;
         booking.level = req.level;
         booking.topic = req.topic;
-        booking.price = price;
-        booking.online = slot.online;
-        booking.startTime = slot.startTime;
-        booking.endTime = slot.endTime;
+       booking.price = price;
+       booking.duration = req.duration != null ? req.duration : 90;
+       boolean isFriday = slot.startTime.getDayOfWeek() == DayOfWeek.FRIDAY;
+
+booking.online = isFriday
+        ? true
+        : Boolean.TRUE.equals(req.online);
+       booking.startTime = slot.startTime;
+       booking.endTime = booking.duration == 60
+           ? slot.startTime.plusMinutes(60)
+           : slot.endTime;
         booking.cancelled = false;
         booking.cancellationCode = createCancellationCode(slot.startTime);
 

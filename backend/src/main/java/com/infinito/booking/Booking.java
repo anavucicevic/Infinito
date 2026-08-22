@@ -18,6 +18,7 @@ public class Booking {
     public String topic;
 
     public Integer price;
+    public Integer duration;
     public boolean online;
 
     public LocalDateTime startTime;

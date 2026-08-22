@@ -1,1 +1,13 @@
-package com.infinito.booking; public class BookingRequest{public Long slotId; public String studentName; public String email; public String phone; public String level; public String topic; public Integer price;}
+package com.infinito.booking;
+
+public class BookingRequest {
+    public Long slotId;
+    public String studentName;
+    public String email;
+    public String phone;
+    public String level;
+    public String topic;
+    public Integer price;
+    public Integer duration;
+    public Boolean online;
+}

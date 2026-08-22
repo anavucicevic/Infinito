@@ -109,6 +109,7 @@ System.out.println("MAIL SENDER NULL = " + (sender == null));
             Vaš termin je uspešno rezervisan.
 
             Termin: %s - %s
+            Trajanje časa: %s min
             Tip časa: %s
             Cena: %s RSD
 
@@ -126,14 +127,17 @@ System.out.println("MAIL SENDER NULL = " + (sender == null));
             Račun: 265000000719689179
             Džona Kenedija 23, 11070 Novi Beograd
 
-            Hvala vam na poverenju i saradnji!
+            Napomena: Nedolazak na zakazani čas ili otkazivanje neposredno pre početka časa smatraće se održanim terminom.
 
-            Srdačno,
-            Ana Vučićević
+Hvala vam na poverenju i saradnji!
+
+Srdačno,
+Ana Vučićević
             """.formatted(
             safe(b.studentName),
             b.startTime.format(formatter),
             b.endTime.format(formatter),
+            b.duration != null ? b.duration : 90,
             b.online ? "Online" : "Uživo - Novi Beograd",
             b.price,
             b.meetLink != null

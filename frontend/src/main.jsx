@@ -105,22 +105,84 @@ function weekLabel(start) {
   return `${formatter.format(start)} – ${formatter.format(end)}`;
 }
 
-function priceFor(level) {
-  return level === 'FAKULTET' ? 3000 : level === 'TAKMICENJE' ? 2500 : 2000;
+function priceFor(level, duration) {
+  if (duration === 60) {
+    return level === 'FAKULTET' ? 2500
+      : level === 'TAKMICENJE' ? 2000
+      : 1500;
+  }
+
+  return level === 'FAKULTET' ? 3000
+    : level === 'TAKMICENJE' ? 2500
+    : 2000;
 }
+
+const riddles = [
+  {
+    question:
+      'Tri kutije su označene: „Jabuke“, „Kruške“ i „Jabuke i kruške“. Sve tri oznake su pogrešne. Smeš da izvučeš samo jedan plod iz jedne kutije. Iz koje kutije treba da izvučeš plod da bi mogao pravilno da označiš sve tri?',
+    answers: ['Jabuke', 'Kruške', 'Jabuke i kruške', 'Nije moguće'],
+    correct: 'Jabuke i kruške',
+    explanation:
+      'Pošto su sve oznake pogrešne, kutija označena „Jabuke i kruške“ sigurno nije mešovita. Jedan izvučen plod odmah otkriva šta je u toj kutiji, a zatim se preostale dve mogu pravilno odrediti.'
+  },
+  {
+    question:
+      'Zamisli broj. Pomnoži ga sa 3, dodaj 12, zatim sve podeli sa 3. Dobiješ 9. Koji broj si zamislio?',
+    answers: [1, 3, 5, 7],
+    correct: 5,
+    explanation:
+      'Ako je broj x, onda važi (3x + 12) / 3 = 9. Dobijamo 3x + 12 = 27, zatim 3x = 15, pa je x = 5.'
+  },
+  {
+    question:
+      'U fioci se nalazi 5 crnih i 5 belih čarapa. Vadiš ih u mraku i ne vidiš boju. Koliko najmanje čarapa moraš da izvučeš da bi bio siguran da imaš dve iste boje?',
+    answers: [2, 3, 5, 6],
+    correct: 3,
+    explanation:
+      'U najgorem slučaju prve dve čarape su različitih boja. Treća mora biti iste boje kao jedna od prve dve, pa su 3 dovoljne.'
+  },
+  {
+    question:
+      'Koji broj nedostaje u nizu: 2, 6, 12, 20, 30, ?',
+    answers: [36, 40, 42, 44],
+    correct: 42,
+    explanation:
+      'Razlike su redom 4, 6, 8 i 10. Sledeća razlika je 12, pa dobijamo 30 + 12 = 42.'
+  },
+  {
+    question:
+      'Sat pokazuje tačno 3:00. Koliki je ugao između male i velike kazaljke?',
+    answers: ['30°', '60°', '90°', '120°'],
+    correct: '90°',
+    explanation:
+      'Pun krug ima 360°, a sat je podeljen na 12 jednakih delova. Između svakog broja je 30°, pa između 12 i 3 ima 3 × 30° = 90°.'
+  },
+  {
+    question:
+      'Ana ima 4 ćerke. Svaka ćerka ima jednog brata. Koliko dece Ana ima?',
+    answers: [4, 5, 8, 9],
+    correct: 5,
+    explanation:
+      'Sve četiri ćerke mogu imati istog brata. Zato Ana ima 4 ćerke i 1 sina, ukupno 5 dece.'
+  }
+];
 
 function App() {
   const [slots, setSlots] = useState([]);
   const [selected, setSelected] = useState(null);
-  const [form, setForm] = useState({
-    studentName: '',
-    email: '',
-    level: 'REGULAR',
-    topic: ''
-  });
+ const [form, setForm] = useState({
+  studentName: '',
+  email: '',
+  duration: 90,
+  online: true,
+  level: 'REGULAR',
+  topic: ''
+});
   const [msg, setMsg] = useState(null);
   const [loading, setLoading] = useState(false);
   const [riddleAnswer, setRiddleAnswer] = useState(null);
+  const [riddleTick, setRiddleTick] = useState(Date.now());
   const [cancelCode, setCancelCode] = useState('');
   const [cancelMsg, setCancelMsg] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
@@ -128,9 +190,15 @@ function App() {
   const [adminMode, setAdminMode] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const minWeekStart = startOfWeek(new Date());
-const maxWeekStart = addDays(minWeekStart, 14);
+const maxWeekStart = addDays(minWeekStart, 21);
 const [showAdminLogin, setShowAdminLogin] = useState(false);
 const [adminError, setAdminError] = useState('');
+const [openFaq, setOpenFaq] = useState(null);
+
+const riddleIndex =
+  Math.floor(riddleTick / (2 * 60 * 60 * 1000)) % riddles.length;
+
+const currentRiddle = riddles[riddleIndex];
 
   useEffect(() => {
     fetch(`${API}/api/slots`)
@@ -140,9 +208,21 @@ const [adminError, setAdminError] = useState('');
         setMsg({ type: 'err', text: 'Backend nije pokrenut ili API URL nije podešen.' })
       );
   }, []);
+  
+  useEffect(() => {
+  const interval = setInterval(() => {
+    setRiddleTick(Date.now());
+    setRiddleAnswer(null);
+  }, 60 * 1000);
+
+  return () => clearInterval(interval);
+}, []);
 
   const booked = slots.filter(s => s.booked);
-  const selectedPrice = useMemo(() => priceFor(form.level), [form.level]);
+  const selectedPrice = useMemo(
+  () => priceFor(form.level, form.duration),
+  [form.level, form.duration]
+);
 
   const weekDays = useMemo(() => {
     return days.map((day, index) => {
@@ -234,7 +314,14 @@ setMsg({
 });
 
       setSelected(null);
-      setForm({ studentName: '', email: '', level: 'REGULAR', topic: '' });
+  setForm({
+  studentName: '',
+  email: '',
+  duration: 90,
+  online: true,
+  level: 'REGULAR',
+  topic: ''
+});
 
       const fresh = await fetch(`${API}/api/slots`).then(r => r.json());
       setSlots(fresh);
@@ -329,7 +416,10 @@ async function adminLogin(e) {
     <CalendarDays size={22}/>
     <span>Zakazivanje</span>
   </a>
-
+<a href="#otkazivanje" className="navItem">
+  <RefreshCw size={22}/>
+  <span>Izmena termina</span>
+</a>
   <a href="#cenovnik" className="navItem">
     <Tag size={22}/>
     <span>Cenovnik</span>
@@ -339,15 +429,21 @@ async function adminLogin(e) {
     <User size={22}/>
     <span>O meni</span>
   </a>
+  <a href="#izazov" className="navItem">
+  <Brain size={22}/>
+  <span>Izazov</span>
+</a>
+<a href="#faq" className="navItem">
+  <MessageCircle size={22}/>
+  <span>Česta pitanja</span>
+</a>
 
   <a href="#kontakt" className="navItem">
     <Phone size={22}/>
     <span>Kontakt</span>
   </a>
-<a href="#otkazivanje" className="navItem">
-  <RefreshCw size={22}/>
-  <span>Izmena termina</span>
-</a>
+
+
   <a className="navCta" href="#zakazivanje">
     <CalendarDays size={20}/>
     <span>Zakaži čas</span>
@@ -434,33 +530,27 @@ async function adminLogin(e) {
         <section id="zakazivanje" className="section">
           <div className="sectionHead">
             <CalendarDays />
-            <div>
-              <h2>Zakaži termin</h2>
-              <p>Izaberi slobodan termin. Za online čas email je obavezan zbog Google Meet linka.</p>
-            </div>
-          </div>
+          
+          
+          
+          <div>
+  <h2>Zakaži termin</h2>
 
-{msg && msg.type === 'ok' && msg.booking && (
-  <div className="successBox">
-    <div className="successIcon">✓</div>
+  <div className="bookingInfo">
+  <p>✉️ Svaki rezervisani termin potvrđujemo putem emaila.</p>
+  <p>💻 Za online časove, Google Meet link stiže u potvrdi.</p>
+  <p>📅 Dodatnih termina van prikazanih neće biti.</p>
 
-    <div>
-      <h3>Termin je uspešno rezervisan</h3>
-
-      <p>
-        {msg.booking.studentName}, {formatDate(msg.booking.startTime)} —{' '}
-        {msg.booking.online ? 'online' : 'uživo'}, {msg.booking.price} RSD
-      </p>
-
-      <div className="cancelCodeBox">
-        <span>Kod za otkazivanje</span>
-        <strong>{msg.booking.cancellationCode}</strong>
-      </div>
-
-      <small>Sačuvajte ovaj kod ukoliko budete želeli da otkažete termin.</small>
-    </div>
+  <div className="bookingWarning">
+    <strong>Napomena:</strong> Nedolazak na zakazani čas ili otkazivanje neposredno
+    pre početka časa smatraće se održanim terminom.
   </div>
-)}
+</div>
+</div>
+
+
+</div>
+
 
 {msg && msg.type === 'err' && (
   <div className="notice err">{msg.text}</div>
@@ -507,10 +597,14 @@ async function adminLogin(e) {
                 <thead>
                   <tr>
                     <th>Vreme</th>
-                    {weekDays.map(day => (
+                   {weekDays.map(day => (
   <th key={day.dateKey}>
     <div>{day.label}</div>
     <small>{shortDate(day.date)}</small>
+
+    {day.date.getDay() === 5 && (
+      <div className="onlineOnly">Samo online</div>
+    )}
   </th>
 ))}
                   </tr>
@@ -558,12 +652,21 @@ onClick={() => {
     toggleBlock(slot);
   } else {
     setSelected(slot);
+
+    const isFriday =
+      new Date(slot.startTime).getDay() === 5;
+
+    if (isFriday) {
+      setForm(prev => ({
+        ...prev,
+        online: true
+      }));
+    }
   }
 }}
                               className={selected?.id === slot.id ? 'slotCell active' : 'slotCell'}
                             >
-                              {slot.online ? <><Video size={15} /> Online</> : <><MapPin size={15} /> Uživo</>}
-                              <small>90 min</small>
+                              Slobodno
                             </button>
                           </td>
                         );
@@ -574,18 +677,50 @@ onClick={() => {
               </table>
             </div>
 
-            <form className="form" onSubmit={reserve}>
+            <div>
+              {msg && msg.type === 'ok' && msg.booking && (
+                <div className="successBox">
+                  <div className="successIcon">✓</div>
+
+                  <div>
+                    <h3>Termin je uspešno rezervisan</h3>
+
+                    <p>
+                      {msg.booking.studentName}, {formatDate(msg.booking.startTime)} —{' '}
+                      {msg.booking.duration || 90} min,{' '}
+                      {msg.booking.online ? 'online' : 'uživo'}, {msg.booking.price} RSD
+                    </p>
+
+                    <div className="cancelCodeBox">
+                      <span>Kod za otkazivanje</span>
+                      <strong>{msg.booking.cancellationCode}</strong>
+                    </div>
+
+                    <small>
+                      Sačuvajte ovaj kod ukoliko budete želeli da otkažete termin.
+                    </small>
+                  </div>
+                </div>
+              )}
+
+              <form className="form" onSubmit={reserve}>
+      
               <h3>Podaci za rezervaciju</h3>
 
               {selected ? (
-                <p className="chosen">
-                  <CheckCircle size={16} />
-                  {formatDate(selected.startTime)} — {selected.online ? 'online' : 'uživo'}
-                </p>
-              ) : (
-                <p className="muted">Prvo izaberi termin iz tabele.</p>
-              )}
+  <div className="chosen bookingSummary">
+    <CheckCircle size={16} />
 
+    <div>
+      <strong>{formatDate(selected.startTime)}</strong>
+      <span>{form.duration} min</span>
+      <span>{form.online ? 'Online' : 'Uživo'}</span>
+      <span>{selectedPrice} RSD</span>
+    </div>
+  </div>
+) : (
+  <p className="muted">Prvo izaberi termin iz tabele.</p>
+)}
               <label>
                 Ime učenika
                 <input
@@ -605,7 +740,41 @@ onClick={() => {
   />
 </label>
 
-             
+           <label>
+  Trajanje časa
+  <select
+    value={form.duration}
+    onChange={e =>
+      setForm({ ...form, duration: Number(e.target.value) })
+    }
+  >
+    <option value={60}>60 min</option>
+    <option value={90}>90 min</option>
+  </select>
+</label>  
+
+<label>
+  Način održavanja
+  <select
+    value={form.online ? 'online' : 'uzivo'}
+    onChange={e =>
+      setForm({ ...form, online: e.target.value === 'online' })
+    }
+    disabled={
+      selected &&
+      new Date(selected.startTime).getDay() === 5
+    }
+  >
+    <option value="online">Online</option>
+    <option value="uzivo">Uživo</option>
+  </select>
+</label>
+
+{selected && new Date(selected.startTime).getDay() === 5 && (
+  <small className="muted">
+    Petkom su časovi dostupni samo online.
+  </small>
+)}
 
               <label>
                 Šta radimo?
@@ -615,11 +784,10 @@ onClick={() => {
               </label>
 
               <label>
-                Oblast / kratak opis
+                Oblast / kratak opis (nije obavezno)
                 <textarea
-                  required
                   rows="4"
-                  placeholder="npr. kvadratne jednačine, geometrija, izvodi..."
+                  placeholder="npr. kvadratne jednačine, prizma, izvodi..."
                   value={form.topic}
                   onChange={e => setForm({ ...form, topic: e.target.value })}
                 />
@@ -632,102 +800,10 @@ onClick={() => {
               </button>
             </form>
           </div>
-        </section>
-
-        <section id="cenovnik" className="section alt">
-          <h2>Cenovnik za školsku 2026/27.</h2>
-
-          <div className="prices">
-            <Price title="Redovna nastava" a="90 min — 2000 RSD" b="60 min — 1500 RSD" />
-            <Price title="Mala matura" a="90 min — 2000 RSD" b="60 min — 1500 RSD" />
-            <Price title="Takmičenja i prijemni za fakultete i Matematičku gimnaziju" a="90 min — 2500 RSD" b="60 min — 2000 RSD" />
-            <Price title="Fakultetsko gradivo" a="90 min — 3000 RSD" b="60 min — 2500 RSD" />
-          </div>
-        </section>
-
-        <section id="o-meni" className="section about">
-          <Brain />
-          <div>
-            <h2>O meni</h2>
-            <p>Ja sam Ana Vučićević, imam 24 godine. Završila sam Matematičku gimnaziju u Beogradu i studiram na Matematičkom fakultetu u Beogradu.</p>
-            <p>Imam višegodišnje iskustvo u držanju individualnih časova, kao i iskustvo rada sa decom predškolskog i osnovnoškolskog uzrasta u školi matematike Kliker i Klikerčić.</p>
-          </div>
-        </section>
-
-        <section className="section riddleSection">
-          <div className="riddleIntro">
-            <p className="eyebrow center">Zagonetka nedelje</p>
-            <h2>Probaj da rešiš bez papira.</h2>
-            <p>
-              Kratak logički izazov za zagrevanje mozga — klikni na odgovor i odmah vidi objašnjenje.
-            </p>
-          </div>
-
-          <div className="riddle">
-            <div className="riddleBadge">✨ Nedeljni izazov</div>
-
-            <p className="riddleQuestion">
-              Zamisli broj. Pomnoži ga sa 3, dodaj 12, zatim sve podeli sa 3.
-              Dobiješ 9. Koji broj si zamislio?
-            </p>
-
-            <div className="answers">
-              {[1, 3, 5, 7].map(value => (
-                <button
-                  key={value}
-                  onClick={() => setRiddleAnswer(value)}
-                  className={
-                    riddleAnswer === value
-                      ? value === 5
-                        ? 'answer correctAnswer'
-                        : 'answer wrongAnswer'
-                      : 'answer'
-                  }
-                >
-                  {value}
-                </button>
-              ))}
             </div>
-
-            {riddleAnswer !== null && (
-              <div className={riddleAnswer === 5 ? 'riddleMsg correct' : 'riddleMsg wrong'}>
-                {riddleAnswer === 5 ? (
-                  <>
-                    <h3>Tačno! 🎉</h3>
-                    <p>
-                      Ako je zamišljeni broj <b>x</b>, onda je
-                      <b> (3x + 12) / 3 = 9</b>. Množimo obe strane sa 3:
-                      <b> 3x + 12 = 27</b>. Oduzmemo 12:
-                      <b> 3x = 15</b>, pa je <b>x = 5</b>.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <h3>Skoro, ali nije to. 🙂</h3>
-                    <p>
-                      Označimo zamišljeni broj sa <b>x</b>. Dobijamo jednačinu
-                      <b> (3x + 12) / 3 = 9</b>. Kada je rešimo:
-                      <b> 3x + 12 = 27</b>, zatim <b>3x = 15</b>,
-                      pa je tačan odgovor <b>5</b>.
-                    </p>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
         </section>
-
-        <section className="section">
-          <h2>Već rezervisani termini</h2>
-          <div className="booked">
-            {booked.length ? booked.map(s => (
-              <div key={s.id}>
-                {formatDate(s.startTime)} — rezervisano {s.reservedBy ? `(${s.reservedBy})` : ''}
-              </div>
-            )) : <p>Nema rezervisanih termina.</p>}
-          </div>
-        </section>
-       <section
+        
+         <section
   id="otkazivanje"
   className="section cancelSection"
 >
@@ -762,6 +838,149 @@ onClick={() => {
         </button>
       </form>
     </div>
+  </div>
+</section>
+
+      
+        <section id="cenovnik" className="section alt">
+          <h2>Cenovnik za školsku 2026/27.</h2>
+
+          <div className="prices">
+            <Price title="Redovna nastava" a="90 min — 2000 RSD" b="60 min — 1500 RSD" />
+            <Price title="Mala matura" a="90 min — 2000 RSD" b="60 min — 1500 RSD" />
+            <Price title="Takmičenja i prijemni za fakultete i Matematičku gimnaziju" a="90 min — 2500 RSD" b="60 min — 2000 RSD" />
+            <Price title="Fakultetsko gradivo" a="90 min — 3000 RSD" b="60 min — 2500 RSD" />
+          </div>
+        </section>
+
+        <section id="o-meni" className="section about">
+          <Brain />
+          <div>
+            <h2>O meni</h2>
+            <p>Ja sam Ana Vučićević, imam 24 godine. Završila sam Matematičku gimnaziju u Beogradu i apsolvent sam na Matematičkom fakultetu u Beogradu.</p>
+            <p>Imam višegodišnje iskustvo u držanju individualnih časova, kao i iskustvo rada sa decom predškolskog i osnovnoškolskog uzrasta u školi matematike Kliker i Klikerčić.</p>
+          </div>
+        </section>
+
+       <section id="izazov" className="section riddleSection">
+  <div className="riddleIntro">
+    <p className="eyebrow center">Matematički izazov</p>
+    
+  </div>
+
+  <div className="riddle">
+    <div className="riddleBadge">✨ Pokušaj da rešiš</div>
+
+    <p className="riddleQuestion">
+      {currentRiddle.question}
+    </p>
+
+    <div className="answers">
+      {currentRiddle.answers.map(value => (
+        <button
+          key={value}
+          onClick={() => setRiddleAnswer(value)}
+          className={
+            riddleAnswer === value
+              ? value === currentRiddle.correct
+                ? 'answer correctAnswer'
+                : 'answer wrongAnswer'
+              : 'answer'
+          }
+        >
+          {value}
+        </button>
+      ))}
+    </div>
+
+    {riddleAnswer !== null && (
+      <div
+        className={
+          riddleAnswer === currentRiddle.correct
+            ? 'riddleMsg correct'
+            : 'riddleMsg wrong'
+        }
+      >
+        {riddleAnswer === currentRiddle.correct ? (
+          <>
+            <h3>Tačno! 🎉</h3>
+            <p>{currentRiddle.explanation}</p>
+          </>
+        ) : (
+          <>
+  		<h3>Skoro, ali nije to. 🙂</h3>
+ 		 <p>Pokušaj ponovo — možda postoji detalj koji si previdela.</p>
+          </>
+        )}
+      </div>
+    )}
+  </div>
+</section>
+
+       {adminMode && (
+  <section className="section">
+    <h2>Već rezervisani termini</h2>
+
+    <div className="booked">
+      {booked.length ? booked.map(s => (
+        <div key={s.id}>
+          {formatDate(s.startTime)} — rezervisano
+          {s.reservedBy ? ` (${s.reservedBy})` : ''}
+        </div>
+      )) : (
+        <p>Nema rezervisanih termina.</p>
+      )}
+    </div>
+  </section>
+)}
+      
+<section id="faq" className="section faqSection">
+  <h2>Česta pitanja</h2>
+
+  <div className="faqList">
+    {[
+      {
+        q: 'Kako dobijam Google Meet link?',
+        a: 'Nakon uspešne rezervacije online časa, Google Meet link stiže u email potvrdi.'
+      },
+      {
+        q: 'Kako mogu da otkažem termin?',
+        a: 'Termin možeš da otkažeš pomoću koda za otkazivanje koji dobijaš nakon rezervacije.'
+      },
+      {
+        q: 'Gde se održavaju časovi uživo?',
+        a: 'Časovi uživo održavaju se na Novom Beogradu, tačnu adresu dobijate u email potvrdi.'
+      },
+      {
+        q: 'Koliko traje čas?',
+        a: 'Možeš da izabereš trajanje od 60 ili 90 minuta prilikom rezervacije.'
+      },
+      {
+        q: 'Šta ako ne dođem na čas ili otkažem neposredno pre početka?',
+        a: 'Nedolazak na zakazani čas ili otkazivanje neposredno pre početka časa smatraće se održanim terminom i biće naplaćen kao takav.'
+      },
+      {
+  q: 'Šta mi je potrebno za čas?',
+  a: 'Donesi beleške sa časa, zbirku ili materijal koji koristite u školi, kao i svesku ili papir za vežbanje. Ako imaš konkretne zadatke ili pitanja, slobodno pripremi i njih.'
+}
+    ].map((item, index) => (
+      <div className="faqItem" key={index}>
+        <button
+          type="button"
+          className="faqQuestion"
+          onClick={() => setOpenFaq(openFaq === index ? null : index)}
+        >
+          <span>{item.q}</span>
+          <span>{openFaq === index ? '−' : '+'}</span>
+        </button>
+
+        {openFaq === index && (
+          <div className="faqAnswer">
+            {item.a}
+          </div>
+        )}
+      </div>
+    ))}
   </div>
 </section>
 
@@ -838,6 +1057,10 @@ onClick={() => {
   </div>
 </section>
       </main>
+      <a href="#zakazivanje" className="mobileBookingCta">
+  <CalendarDays size={18} />
+  Zakaži čas
+</a>
 <footer>
 
   <img
