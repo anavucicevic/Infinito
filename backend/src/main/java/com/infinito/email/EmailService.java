@@ -126,6 +126,8 @@ System.out.println("MAIL SENDER NULL = " + (sender == null));
             Ana Vučićević
             Račun: 265000000719689179
             Džona Kenedija 23, 11070 Novi Beograd
+            
+            %s
 
             Napomena: Nedolazak na zakazani čas ili otkazivanje neposredno pre početka časa smatraće se održanim terminom.
 
@@ -143,7 +145,10 @@ Ana Vučićević
             b.meetLink != null
                     ? "Google Meet link: " + b.meetLink
                     : "Lokacija: Novi Beograd",
-            safe(b.cancellationCode)
+            safe(b.cancellationCode),
+b.online
+        ? ""
+        : "Ukoliko uplata na navedeni način nije moguća, čas uživo možete platiti i prilikom dolaska."
     );
 }
 
