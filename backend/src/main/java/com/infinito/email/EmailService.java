@@ -109,32 +109,25 @@ System.out.println("MAIL SENDER NULL = " + (sender == null));
             Vaš termin je uspešno rezervisan.
 
             Termin: %s - %s
-            Trajanje časa: %s min
+            Trajanje: %s min
             Tip časa: %s
             Cena: %s RSD
-
             %s
 
-            Kod za otkazivanje:
-            %s
-
-            Sačuvajte ovaj kod ukoliko budete želeli da otkažete termin.
-
-            UPUTSTVO ZA UPLATU
-
-            Podaci za uplatu:
+            UPLATA
             Ana Vučićević
             Račun: 265000000719689179
             Džona Kenedija 23, 11070 Novi Beograd
-            
             %s
+
+            Kod za otkazivanje: %s
 
             Napomena: Nedolazak na zakazani čas ili otkazivanje neposredno pre početka časa smatraće se održanim terminom.
 
-Hvala vam na poverenju i saradnji!
+            Hvala vam na poverenju!
 
-Srdačno,
-Ana Vučićević
+            Srdačno,
+            Ana Vučićević
             """.formatted(
             safe(b.studentName),
             b.startTime.format(formatter),
@@ -143,12 +136,12 @@ Ana Vučićević
             b.online ? "Online" : "Uživo - Novi Beograd",
             b.price,
             b.meetLink != null
-                    ? "Google Meet link: " + b.meetLink
+                    ? "Google Meet: " + b.meetLink
                     : "Lokacija: Novi Beograd",
-            safe(b.cancellationCode),
-b.online
-        ? ""
-        : "Ukoliko uplata na navedeni način nije moguća, čas uživo možete platiti i prilikom dolaska."
+            b.online
+                    ? ""
+                    : "Ako uplata na navedeni način nije moguća, čas uživo možete platiti i prilikom dolaska.",
+            safe(b.cancellationCode)
     );
 }
 
