@@ -5,7 +5,7 @@ import com.infinito.email.EmailService;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Value;
-
+import java.time.LocalDateTime;
 import java.time.*;
 import java.util.*;
 
@@ -32,13 +32,16 @@ private String adminPassword;
         email = e;
     }
 
-    @GetMapping("/slots")
-    public List<LessonSlot> slots() {
-        return slots.findAll()
-                .stream()
-                .sorted(Comparator.comparing(x -> x.startTime))
-                .toList();
-    }
+@GetMapping("/slots")
+public List<LessonSlot> slots() {
+    LocalDateTime now = LocalDateTime.now();
+
+    return slots.findAll()
+            .stream()
+            .filter(slot -> slot.startTime.isAfter(now))
+            .sorted(Comparator.comparing(x -> x.startTime))
+            .toList();
+}
 
     @PostMapping("/bookings")
     public ResponseEntity<?> book(@RequestBody BookingRequest req) {
