@@ -90,7 +90,8 @@ if (!slot.startTime.isAfter(LocalDateTime.now().plusHours(4))) {
             );
         }
 
-        int price = priceFor(req.level);
+        int duration = req.duration != null ? req.duration : 90;
+int price = priceFor(req.level, duration);
 
         Booking booking = new Booking();
 
@@ -241,14 +242,23 @@ public ResponseEntity<?> toggleBlock(
 
     return ResponseEntity.ok(slot);
 }
-    private int priceFor(String level) {
+ private int priceFor(String level, int duration) {
+    if (duration == 60) {
         return switch (level) {
-            case "FAKULTET" -> 3000;
-            case "TAKMICENJE" -> 2500;
-            case "REGULAR", "MALA_MATURA" -> 2000;
-            default -> 2000;
+            case "FAKULTET" -> 2500;
+            case "TAKMICENJE" -> 2000;
+            case "REGULAR", "MALA_MATURA" -> 1500;
+            default -> 1500;
         };
     }
+
+    return switch (level) {
+        case "FAKULTET" -> 3000;
+        case "TAKMICENJE" -> 2500;
+        case "REGULAR", "MALA_MATURA" -> 2000;
+        default -> 2000;
+    };
+}
 
     private String createCancellationCode(LocalDateTime startTime) {
 

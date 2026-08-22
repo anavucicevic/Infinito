@@ -307,6 +307,7 @@ setMsg({
   booking: {
     studentName: data.studentName,
     startTime: data.startTime,
+    duration: data.duration,
     online: data.online,
     price: data.price,
     cancellationCode: data.cancellationCode
