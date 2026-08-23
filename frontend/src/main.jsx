@@ -599,7 +599,10 @@ async function adminLogin(e) {
                   <tr>
                     <th>Vreme</th>
                    {weekDays.map(day => (
-  <th key={day.dateKey}>
+  <th
+  key={day.dateKey}
+  className={day.dateKey === dateKey(new Date()) ? 'todayHeader' : ''}
+>
     <div>{day.label}</div>
     <small>{shortDate(day.date)}</small>
 

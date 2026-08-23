@@ -1527,3 +1527,8 @@ footer h3{
   border-color:#b5b5b5;
   box-shadow:none;
 }
+.todayHeader{
+  outline:3px solid var(--secondary);
+  outline-offset:2px;
+  box-shadow:0 0 0 4px rgba(244,195,144,.18);
+}
