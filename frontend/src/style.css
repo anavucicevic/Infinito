@@ -1515,3 +1515,15 @@ footer h3{
 .miniStatSmaller{
   font-size:20px !important;
 }
+.blockedCell{
+  background:#cfcfcf;
+  color:#4a4a4a;
+  border-color:#c4c4c4;
+  box-shadow:none;
+}
+
+.blockedCell:hover{
+  transform:none;
+  border-color:#b5b5b5;
+  box-shadow:none;
+}
