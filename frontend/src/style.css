@@ -519,11 +519,14 @@ a{
   cursor:not-allowed;
   background:#f3eef8;
 }
-
+.bookedCell:not(:disabled){
+  cursor:pointer;
+}
 .bookedCell:hover{
   transform:none;
   box-shadow:none;
 }
+
 
 .form{
   padding:28px;
@@ -1531,4 +1534,23 @@ footer h3{
   outline:3px solid var(--secondary);
   outline-offset:2px;
   box-shadow:0 0 0 4px rgba(244,195,144,.18);
+}
+.heldCell{
+  background:#dff5e5;
+  color:#1f6b3a;
+  border-color:#b9dfc5;
+  box-shadow:none;
+}
+
+.cancelledCell{
+  background:#fde2e2;
+  color:#8a1f1f;
+  border-color:#f3bcbc;
+  box-shadow:none;
+}
+
+.heldCell:hover,
+.cancelledCell:hover{
+  transform:none;
+  box-shadow:none;
 }

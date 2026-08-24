@@ -332,40 +332,102 @@ setMsg({
       setLoading(false);
     }
   }
+async function markHeld(slot) {
+  try {
+    const res = await fetch(
+      `${API}/api/admin/slots/${slot.id}/mark-held`,
+      {
+        method: 'POST',
+        headers: {
+          'X-Admin-Password': adminPassword
+        }
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || 'Greška pri označavanju termina.');
+    }
+
+    setSlots(prev =>
+      prev.map(s =>
+        s.id === data.id ? data : s
+      )
+    );
+  } catch (err) {
+    setMsg({ type: 'err', text: err.message });
+  }
+}
+  
   async function cancelBooking(e) {
   e.preventDefault();
 
-  if (!cancelCode.trim()) return;
+  const code = cancelCode.trim();
+
+  if (!code) return;
 
   setCancelLoading(true);
   setCancelMsg(null);
 
   try {
-    const res = await fetch(`${API}/api/bookings/cancel/${cancelCode.trim()}`, {
-      method: 'POST'
-    });
+    const checkRes = await fetch(
+      `${API}/api/bookings/cancel/${code}/check`
+    );
+
+    const checkData = await checkRes.json();
+
+    if (!checkRes.ok) {
+      throw new Error(
+        checkData.message || 'Greška pri proveri termina.'
+      );
+    }
+
+    if (checkData.lateCancellation) {
+      const confirmed = window.confirm(
+        'Kasno otkazivanje termina\n\n' +
+        'Termin otkazujete manje od 4 sata pre početka časa. ' +
+        'U skladu sa pravilima otkazivanja, čas će biti naplaćen kao održan.\n\n' +
+        'Da li želite da nastavite sa otkazivanjem?'
+      );
+
+      if (!confirmed) {
+        setCancelLoading(false);
+        return;
+      }
+    }
+
+    const res = await fetch(
+      `${API}/api/bookings/cancel/${code}`,
+      {
+        method: 'POST'
+      }
+    );
 
     const data = await res.json();
 
     if (!res.ok) {
-      throw new Error(data.message || 'Greška pri otkazivanju termina.');
+      throw new Error(
+        data.message || 'Greška pri otkazivanju termina.'
+      );
     }
 
     setCancelMsg({
       type: 'ok',
-      text: `Termin je otkazan. Kod: ${cancelCode.trim()}`
+      text: data.message
     });
 
     setCancelCode('');
 
     const fresh = await fetch(`${API}/api/slots`).then(r => r.json());
     setSlots(fresh);
+
   } catch (err) {
     setCancelMsg({
       type: 'err',
       text: err.message
     });
-    } finally {
+  } finally {
     setCancelLoading(false);
   }
 }
@@ -390,6 +452,13 @@ async function adminLogin(e) {
 
     setAdminMode(true);
     setShowAdminLogin(false);
+    const adminSlots = await fetch(`${API}/api/admin/slots`, {
+  headers: {
+    'X-Admin-Password': adminPassword
+  }
+}).then(r => r.json());
+
+setSlots(adminSlots);
   } catch (err) {
     setAdminError(err.message);
   }
@@ -620,19 +689,68 @@ async function adminLogin(e) {
                       <td className="timeCell">{timeLabels[time]}</td>
                      {weekDays.map(day => {
  			 const slot = schedule[time][day.dateKey];
+ 			 const isPast = slot && new Date(slot.startTime) < new Date();
+
+if (slot && isPast && !slot.booked && !slot.blocked) {
+  return <td key={day.dateKey} className="emptyCell">—</td>;
+}
 
                         if (!slot) return <td key={day.dateKey} className="emptyCell">—</td>;
+                        if (adminMode && slot.status === 'ODRZANO') {
+  return (
+    <td key={day.dateKey}>
+      <button className="slotCell heldCell" disabled>
+        Održano
+        {slot.reservedBy && <small>{slot.reservedBy}</small>}
+      </button>
+    </td>
+  );
+}
 
-                        if (slot.booked) {
-                          return (
-                            <td key={day.dateKey}>
-                              <button className="slotCell bookedCell" disabled>
-                                Zauzeto
-                                {slot.reservedBy && <small>{slot.reservedBy}</small>}
-                              </button>
-                            </td>
-                          );
-                        }
+if (adminMode && slot.status === 'OTKAZANO') {
+  return (
+    <td key={day.dateKey}>
+      <button className="slotCell cancelledCell" disabled>
+        Otkazano
+        {slot.reservedBy && <small>{slot.reservedBy}</small>}
+      </button>
+    </td>
+  );
+}
+
+                       if (slot.booked) {
+  const isPast = new Date(slot.startTime) < new Date();
+
+  if (
+    adminMode &&
+    isPast &&
+    (!slot.status || slot.status === 'ZAKAZANO')
+  ) {
+    return (
+      <td key={day.dateKey}>
+        <button
+          className="slotCell bookedCell"
+          onClick={() => markHeld(slot)}
+        >
+          Zakazano
+          {slot.reservedBy && <small>{slot.reservedBy}</small>}
+          <small>Klikni za „Održano“</small>
+        </button>
+      </td>
+    );
+  }
+
+  return (
+    <td key={day.dateKey}>
+      <button className="slotCell bookedCell" disabled>
+        {adminMode ? 'Zakazano' : 'Zauzeto'}
+        {adminMode && slot.reservedBy && (
+          <small>{slot.reservedBy}</small>
+        )}
+      </button>
+    </td>
+  );
+}
                         if (slot.blocked) {
   return (
     <td key={day.dateKey}>
@@ -913,7 +1031,7 @@ onClick={() => {
         ) : (
           <>
   		<h3>Skoro, ali nije to. 🙂</h3>
- 		 <p>Pokušaj ponovo — možda postoji detalj koji si previdela.</p>
+ 		 <p>Pokušaj ponovo — možda postoji detalj koji si prevideo/la.</p>
           </>
         )}
       </div>

@@ -118,6 +118,7 @@ booking.online = isFriday
            ? slot.startTime.plusMinutes(60)
            : slot.endTime;
         booking.cancelled = false;
+        booking.status = "ZAKAZANO";
         booking.cancellationCode = createCancellationCode(slot.startTime);
 
         var cal = calendar.createEvent(booking);
@@ -127,10 +128,12 @@ booking.online = isFriday
 
         bookings.save(booking);
 
-        slot.booked = true;
-        slot.reservedBy = req.studentName;
-        slot.price = price;
-        slots.save(slot);
+slot.booked = true;
+slot.reservedBy = req.studentName;
+slot.price = price;
+slot.status = "ZAKAZANO";
+slot.bookingId = booking.id;
+slots.save(slot);
 
         try {
             email.sendBookingEmails(booking);
@@ -140,7 +143,43 @@ booking.online = isFriday
 
         return ResponseEntity.ok(booking);
     }
+@GetMapping("/bookings/cancel/{code}/check")
+public ResponseEntity<?> checkCancellation(@PathVariable String code) {
 
+    String normalizedCode = code.trim().toLowerCase();
+
+    Optional<Booking> found = bookings.findAll()
+            .stream()
+            .filter(b -> b.cancellationCode != null)
+            .filter(b -> b.cancellationCode.equalsIgnoreCase(normalizedCode))
+            .filter(b -> !b.cancelled)
+            .findFirst();
+
+    if (found.isEmpty()) {
+        return ResponseEntity.status(404).body(
+                Map.of("message", "Nije pronađena aktivna rezervacija sa tim kodom.")
+        );
+    }
+
+    Booking booking = found.get();
+    LocalDateTime now = LocalDateTime.now();
+
+    if (!booking.startTime.isAfter(now)) {
+        return ResponseEntity.badRequest().body(
+                Map.of("message", "Termin koji je već počeo nije moguće otkazati.")
+        );
+    }
+
+    boolean lateCancellation =
+            !booking.startTime.isAfter(now.plusHours(4));
+
+    return ResponseEntity.ok(
+            Map.of(
+                    "lateCancellation", lateCancellation,
+                    "startTime", booking.startTime
+            )
+    );
+}
     @PostMapping("/bookings/cancel/{code}")
     public ResponseEntity<?> cancel(@PathVariable String code) {
 
@@ -163,14 +202,25 @@ booking.online = isFriday
         }
 
         Booking booking = found.get();
+        LocalDateTime now = LocalDateTime.now();
+
+if (!booking.startTime.isAfter(now)) {
+    return ResponseEntity.badRequest().body(
+            Map.of("message", "Termin koji je već počeo nije moguće otkazati.")
+    );
+}
+
+boolean lateCancellation =
+        !booking.startTime.isAfter(now.plusHours(4));
 
         calendar.deleteEvent(booking.calendarEventId);
 
         booking.cancelled = true;
+        booking.status = "OTKAZANO";
         bookings.save(booking);
 
         try {
-            email.sendCancellationEmails(booking);
+            email.sendCancellationEmails(booking, lateCancellation);
         } catch (Exception e) {
             System.err.println(
                     "Email o otkazivanju nije poslat: " + e.getMessage()
@@ -182,24 +232,35 @@ booking.online = isFriday
                 .filter(s -> s.startTime.equals(booking.startTime))
                 .findFirst();
 
-        if (slot.isPresent()) {
-            LessonSlot lessonSlot = slot.get();
+       if (slot.isPresent()) {
+    LessonSlot lessonSlot = slot.get();
 
-            lessonSlot.booked = false;
-            lessonSlot.reservedBy = null;
-            lessonSlot.price = null;
+    if (lateCancellation) {
+        lessonSlot.booked = true;
+        lessonSlot.status = "OTKAZANO";
+    } else {
+        lessonSlot.booked = false;
+        lessonSlot.status = null;
+        lessonSlot.reservedBy = null;
+        lessonSlot.price = null;
+        lessonSlot.bookingId = null;
+    }
 
-            slots.save(lessonSlot);
-        }
+    slots.save(lessonSlot);
+}
 
         return ResponseEntity.ok(
-                Map.of(
-                        "message",
-                        "Termin je uspešno otkazan.",
-                        "cancellationCode",
-                        booking.cancellationCode
-                )
-        );
+        Map.of(
+                "message",
+                lateCancellation
+                        ? "Termin je otkazan. Otkazivanje je izvršeno manje od 4 sata pre početka časa i čas će biti naplaćen kao održan."
+                        : "Termin je uspešno otkazan i ponovo je dostupan za rezervaciju.",
+                "cancellationCode",
+                booking.cancellationCode,
+                "lateCancellation",
+                lateCancellation
+        )
+);
     }
     @PostMapping("/admin/login")
 public ResponseEntity<?> adminLogin(
@@ -213,6 +274,24 @@ public ResponseEntity<?> adminLogin(
 
     return ResponseEntity.ok(
             Map.of("message", "Prijava uspešna.")
+    );
+}
+
+@GetMapping("/admin/slots")
+public ResponseEntity<?> adminSlots(
+        @RequestHeader(value = "X-Admin-Password", required = false) String password
+) {
+    if (password == null || !password.equals(adminPassword)) {
+        return ResponseEntity.status(401).body(
+                Map.of("message", "Pogrešna admin lozinka.")
+        );
+    }
+
+    return ResponseEntity.ok(
+            slots.findAll()
+                    .stream()
+                    .sorted(Comparator.comparing(slot -> slot.startTime))
+                    .toList()
     );
 }
 @PostMapping("/admin/slots/{id}/toggle-block")
@@ -244,6 +323,58 @@ public ResponseEntity<?> toggleBlock(
     }
 
     slot.blocked = !Boolean.TRUE.equals(slot.blocked);
+    slots.save(slot);
+
+    return ResponseEntity.ok(slot);
+}
+
+@PostMapping("/admin/slots/{id}/mark-held")
+public ResponseEntity<?> markHeld(
+        @PathVariable Long id,
+        @RequestHeader(value = "X-Admin-Password", required = false) String password
+) {
+    if (password == null || !password.equals(adminPassword)) {
+        return ResponseEntity.status(401).body(
+                Map.of("message", "Pogrešna admin lozinka.")
+        );
+    }
+
+    Optional<LessonSlot> slotOptional = slots.findById(id);
+
+    if (slotOptional.isEmpty()) {
+        return ResponseEntity.status(404).body(
+                Map.of("message", "Termin nije pronađen.")
+        );
+    }
+
+    LessonSlot slot = slotOptional.get();
+
+    Optional<Booking> bookingOptional;
+
+    if (slot.bookingId != null) {
+        bookingOptional = bookings.findById(slot.bookingId);
+    } else {
+        bookingOptional = bookings.findAll()
+                .stream()
+                .filter(b -> !b.cancelled)
+                .filter(b -> b.startTime.equals(slot.startTime))
+                .findFirst();
+    }
+
+    if (bookingOptional.isEmpty()) {
+        return ResponseEntity.status(404).body(
+                Map.of("message", "Rezervacija za ovaj termin nije pronađena.")
+        );
+    }
+
+    Booking booking = bookingOptional.get();
+
+    booking.status = "ODRZANO";
+    booking.cancelled = false;
+    bookings.save(booking);
+
+    slot.status = "ODRZANO";
+    slot.bookingId = booking.id;
     slots.save(slot);
 
     return ResponseEntity.ok(slot);

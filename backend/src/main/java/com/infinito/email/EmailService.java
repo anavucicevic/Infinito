@@ -50,9 +50,9 @@ System.out.println("MAIL SENDER NULL = " + (sender == null));
         }
     }
 
-    public void sendCancellationEmails(Booking b) {
-        String ownerText = buildOwnerCancellationText(b);
-        String studentText = buildStudentCancellationText(b);
+    public void sendCancellationEmails(Booking b, boolean lateCancellation) {
+    String ownerText = buildOwnerCancellationText(b);
+    String studentText = buildStudentCancellationText(b, lateCancellation);
 
         if (enabled && sender != null) {
             send(ownerEmail, "Otkazan čas", ownerText);
@@ -162,24 +162,33 @@ System.out.println("MAIL SENDER NULL = " + (sender == null));
         );
     }
 
-    private String buildStudentCancellationText(Booking b) {
-        return """
-                Zdravo %s,
+    private String buildStudentCancellationText(Booking b, boolean lateCancellation) {
 
-                Vaš termin je uspešno otkazan.
+    String cancellationNotice = lateCancellation
+            ? """
+              
+              Napomena: Termin je otkazan manje od 4 sata pre početka časa.
+              U skladu sa pravilima otkazivanja, čas će biti naplaćen kao održan.
+              """
+            : "";
 
-                Otkazani termin:
-                %s - %s
+    return """
+            Zdravo %s,
 
-                Srdačno,
-                Ana Vučićević
-                """.formatted(
-                safe(b.studentName),
-                b.startTime.format(formatter),
-                b.endTime.format(formatter)
-        );
-    }
+            Vaš termin je uspešno otkazan.
 
+            Otkazani termin:
+            %s - %s
+            %s
+            Srdačno,
+            Ana Vučićević
+            """.formatted(
+            safe(b.studentName),
+            b.startTime.format(formatter),
+            b.endTime.format(formatter),
+            cancellationNotice
+    );
+}
   private void send(String to,String subject,String text){
     SimpleMailMessage m = new SimpleMailMessage();
     m.setFrom(ownerEmail);

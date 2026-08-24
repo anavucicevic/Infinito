@@ -20,6 +20,8 @@ public class LessonSlot {
 public Boolean blocked = false;
     public String reservedBy;
     public Integer price;
+    public String status;
+public Long bookingId;
 
     public LessonSlot() {
     }

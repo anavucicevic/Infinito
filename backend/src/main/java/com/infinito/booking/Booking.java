@@ -29,4 +29,5 @@ public class Booking {
 
     public String cancellationCode;
     public boolean cancelled;
+    public String status;
 }
