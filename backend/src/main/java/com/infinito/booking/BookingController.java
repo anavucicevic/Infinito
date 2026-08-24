@@ -35,11 +35,19 @@ private String adminPassword;
 
 @GetMapping("/slots")
 public List<LessonSlot> slots() {
-    LocalDateTime earliestAllowed = LocalDateTime.now(ZoneId.of("Europe/Belgrade")).plusHours(4);
+    LocalDateTime now =
+            LocalDateTime.now(ZoneId.of("Europe/Belgrade"));
+
+    LocalDateTime earliestAllowed = now.plusHours(4);
 
     return slots.findAll()
             .stream()
-            .filter(slot -> slot.startTime.isAfter(earliestAllowed))
+            .filter(slot -> slot.startTime.isAfter(now))
+            .filter(slot ->
+                    slot.booked
+                    || Boolean.TRUE.equals(slot.blocked)
+                    || slot.startTime.isAfter(earliestAllowed)
+            )
             .sorted(Comparator.comparing(slot -> slot.startTime))
             .toList();
 }
@@ -295,76 +303,7 @@ public ResponseEntity<?> adminSlots(
                     .toList()
     );
 }
-@GetMapping("/admin/check-lav-bookings")
-public ResponseEntity<?> checkLavBookings(
-        @RequestHeader(value = "X-Admin-Password", required = false) String password
-) {
-    if (password == null || !password.equals(adminPassword)) {
-        return ResponseEntity.status(401).body(
-                Map.of("message", "Pogrešna admin lozinka.")
-        );
-    }
 
-    LocalDateTime first = LocalDateTime.of(2026, 8, 19, 10, 0);
-    LocalDateTime second = LocalDateTime.of(2026, 8, 21, 18, 45);
-
-    List<Booking> result = bookings.findAll()
-            .stream()
-            .filter(b -> b.startTime != null)
-            .filter(b ->
-                    b.startTime.equals(first) ||
-                    b.startTime.equals(second)
-            )
-            .toList();
-
-    List<LessonSlot> matchingSlots = slots.findAll()
-        .stream()
-        .filter(s -> s.startTime != null)
-        .filter(s ->
-                s.startTime.equals(first) ||
-                s.startTime.equals(second)
-        )
-        .toList();
-
-return ResponseEntity.ok(
-        Map.of(
-                "bookings", result,
-                "slots", matchingSlots
-        )
-);
-}
-@PostMapping("/admin/cleanup-cancelled-test-slots")
-public ResponseEntity<?> cleanupCancelledTestSlots(
-        @RequestHeader(value = "X-Admin-Password", required = false) String password
-) {
-    if (password == null || !password.equals(adminPassword)) {
-        return ResponseEntity.status(401).body(
-                Map.of("message", "Pogrešna admin lozinka.")
-        );
-    }
-
-    int cleaned = 0;
-
-    for (LessonSlot slot : slots.findAll()) {
-        if ("OTKAZANO".equals(slot.status)) {
-            slot.booked = false;
-            slot.status = null;
-            slot.reservedBy = null;
-            slot.price = null;
-            slot.bookingId = null;
-
-            slots.save(slot);
-            cleaned++;
-        }
-    }
-
-    return ResponseEntity.ok(
-            Map.of(
-                    "message", "Test termini su očišćeni.",
-                    "cleaned", cleaned
-            )
-    );
-}
 @PostMapping("/admin/slots/{id}/toggle-block")
 public ResponseEntity<?> toggleBlock(
         @PathVariable Long id,
