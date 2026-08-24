@@ -894,7 +894,9 @@ footer h3{
 }
 
 .answer{
-  width:70px;
+  min-width:110px;
+  width:auto;
+  padding:0 16px;
   height:68px;
   border:1px solid rgba(255,255,255,.20);
   border-radius:20px;
@@ -1553,4 +1555,12 @@ footer h3{
 .cancelledCell:hover{
   transform:none;
   box-shadow:none;
+}
+@media(max-width:720px){
+  .answer{
+    width:100%;
+    min-width:0;
+    padding:0 10px;
+    font-size:18px;
+  }
 }

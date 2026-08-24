@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import java.time.LocalDateTime;
 import java.time.*;
 import java.util.*;
+import java.time.ZoneId;
 
 @RestController
 @RequestMapping("/api")
@@ -34,7 +35,7 @@ private String adminPassword;
 
 @GetMapping("/slots")
 public List<LessonSlot> slots() {
-    LocalDateTime earliestAllowed = LocalDateTime.now().plusHours(4);
+    LocalDateTime earliestAllowed = LocalDateTime.now(ZoneId.of("Europe/Belgrade")).plusHours(4);
 
     return slots.findAll()
             .stream()
@@ -66,7 +67,7 @@ public List<LessonSlot> slots() {
             Map.of("message", "Ovaj termin trenutno nije dostupan.")
     );
 }
-if (!slot.startTime.isAfter(LocalDateTime.now().plusHours(4))) {
+if (!slot.startTime.isAfter(LocalDateTime.now(ZoneId.of("Europe/Belgrade")).plusHours(4))) {
     return ResponseEntity.badRequest().body(
             Map.of("message", "Termin je moguće rezervisati najkasnije 4 sata pre početka časa.")
     );
@@ -162,7 +163,7 @@ public ResponseEntity<?> checkCancellation(@PathVariable String code) {
     }
 
     Booking booking = found.get();
-    LocalDateTime now = LocalDateTime.now();
+    LocalDateTime now = LocalDateTime.now(ZoneId.of("Europe/Belgrade"));
 
     if (!booking.startTime.isAfter(now)) {
         return ResponseEntity.badRequest().body(
@@ -202,7 +203,7 @@ public ResponseEntity<?> checkCancellation(@PathVariable String code) {
         }
 
         Booking booking = found.get();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Europe/Belgrade"));
 
 if (!booking.startTime.isAfter(now)) {
     return ResponseEntity.badRequest().body(
@@ -287,9 +288,36 @@ public ResponseEntity<?> adminSlots(
         );
     }
 
+    List<LessonSlot> allSlots = slots.findAll();
+    List<Booking> allBookings = bookings.findAll();
+
+    for (LessonSlot slot : allSlots) {
+        if (slot.bookingId == null) {
+            allBookings.stream()
+                    .filter(b -> b.startTime != null)
+                    .filter(b -> b.startTime.equals(slot.startTime))
+                    .findFirst()
+                    .ifPresent(b -> {
+                        slot.bookingId = b.id;
+                        slot.booked = true;
+                        slot.reservedBy = b.studentName;
+                        slot.price = b.price;
+
+                        if (b.status != null) {
+                            slot.status = b.status;
+                        } else if (b.cancelled) {
+                            slot.status = "OTKAZANO";
+                        } else {
+                            slot.status = "ZAKAZANO";
+                        }
+
+                        slots.save(slot);
+                    });
+        }
+    }
+
     return ResponseEntity.ok(
-            slots.findAll()
-                    .stream()
+            allSlots.stream()
                     .sorted(Comparator.comparing(slot -> slot.startTime))
                     .toList()
     );
@@ -321,6 +349,18 @@ public ResponseEntity<?> toggleBlock(
                 Map.of("message", "Rezervisan termin ne može biti zatvoren.")
         );
     }
+    boolean openingSlot = Boolean.TRUE.equals(slot.blocked);
+
+if (openingSlot) {
+    LocalDateTime now =
+            LocalDateTime.now(ZoneId.of("Europe/Belgrade"));
+
+    if (!slot.startTime.isAfter(now.plusHours(4))) {
+        return ResponseEntity.badRequest().body(
+                Map.of("message", "Termin nije moguće otvoriti manje od 4 sata pre početka.")
+        );
+    }
+}
 
     slot.blocked = !Boolean.TRUE.equals(slot.blocked);
     slots.save(slot);
