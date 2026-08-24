@@ -317,7 +317,21 @@ public ResponseEntity<?> checkLavBookings(
             )
             .toList();
 
-    return ResponseEntity.ok(result);
+    List<LessonSlot> matchingSlots = slots.findAll()
+        .stream()
+        .filter(s -> s.startTime != null)
+        .filter(s ->
+                s.startTime.equals(first) ||
+                s.startTime.equals(second)
+        )
+        .toList();
+
+return ResponseEntity.ok(
+        Map.of(
+                "bookings", result,
+                "slots", matchingSlots
+        )
+);
 }
 @PostMapping("/admin/cleanup-cancelled-test-slots")
 public ResponseEntity<?> cleanupCancelledTestSlots(
