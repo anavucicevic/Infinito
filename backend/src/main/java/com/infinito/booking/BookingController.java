@@ -295,6 +295,30 @@ public ResponseEntity<?> adminSlots(
                     .toList()
     );
 }
+@GetMapping("/admin/check-lav-bookings")
+public ResponseEntity<?> checkLavBookings(
+        @RequestHeader(value = "X-Admin-Password", required = false) String password
+) {
+    if (password == null || !password.equals(adminPassword)) {
+        return ResponseEntity.status(401).body(
+                Map.of("message", "Pogrešna admin lozinka.")
+        );
+    }
+
+    LocalDateTime first = LocalDateTime.of(2026, 8, 19, 10, 0);
+    LocalDateTime second = LocalDateTime.of(2026, 8, 21, 18, 45);
+
+    List<Booking> result = bookings.findAll()
+            .stream()
+            .filter(b -> b.startTime != null)
+            .filter(b ->
+                    b.startTime.equals(first) ||
+                    b.startTime.equals(second)
+            )
+            .toList();
+
+    return ResponseEntity.ok(result);
+}
 @PostMapping("/admin/cleanup-cancelled-test-slots")
 public ResponseEntity<?> cleanupCancelledTestSlots(
         @RequestHeader(value = "X-Admin-Password", required = false) String password
