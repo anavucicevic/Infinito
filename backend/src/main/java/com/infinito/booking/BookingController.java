@@ -288,38 +288,43 @@ public ResponseEntity<?> adminSlots(
         );
     }
 
-    List<LessonSlot> allSlots = slots.findAll();
-    List<Booking> allBookings = bookings.findAll();
+    return ResponseEntity.ok(
+            slots.findAll()
+                    .stream()
+                    .sorted(Comparator.comparing(slot -> slot.startTime))
+                    .toList()
+    );
+}
+@PostMapping("/admin/cleanup-cancelled-test-slots")
+public ResponseEntity<?> cleanupCancelledTestSlots(
+        @RequestHeader(value = "X-Admin-Password", required = false) String password
+) {
+    if (password == null || !password.equals(adminPassword)) {
+        return ResponseEntity.status(401).body(
+                Map.of("message", "Pogrešna admin lozinka.")
+        );
+    }
 
-    for (LessonSlot slot : allSlots) {
-        if (slot.bookingId == null) {
-            allBookings.stream()
-                    .filter(b -> b.startTime != null)
-                    .filter(b -> b.startTime.equals(slot.startTime))
-                    .findFirst()
-                    .ifPresent(b -> {
-                        slot.bookingId = b.id;
-                        slot.booked = true;
-                        slot.reservedBy = b.studentName;
-                        slot.price = b.price;
+    int cleaned = 0;
 
-                        if (b.status != null) {
-                            slot.status = b.status;
-                        } else if (b.cancelled) {
-                            slot.status = "OTKAZANO";
-                        } else {
-                            slot.status = "ZAKAZANO";
-                        }
+    for (LessonSlot slot : slots.findAll()) {
+        if ("OTKAZANO".equals(slot.status)) {
+            slot.booked = false;
+            slot.status = null;
+            slot.reservedBy = null;
+            slot.price = null;
+            slot.bookingId = null;
 
-                        slots.save(slot);
-                    });
+            slots.save(slot);
+            cleaned++;
         }
     }
 
     return ResponseEntity.ok(
-            allSlots.stream()
-                    .sorted(Comparator.comparing(slot -> slot.startTime))
-                    .toList()
+            Map.of(
+                    "message", "Test termini su očišćeni.",
+                    "cleaned", cleaned
+            )
     );
 }
 @PostMapping("/admin/slots/{id}/toggle-block")
