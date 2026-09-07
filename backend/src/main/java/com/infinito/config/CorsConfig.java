@@ -12,6 +12,8 @@ public class CorsConfig implements WebMvcConfigurer {
         registry.addMapping("/api/**")
                 .allowedOrigins(
         "http://localhost:5173",
+        "https://infinitomatematika.rs",
+        "https://www.infinitomatematika.rs",
         "http://192.168.0.39:5173",
         "https://infinito-t31m.onrender.com"
 )
