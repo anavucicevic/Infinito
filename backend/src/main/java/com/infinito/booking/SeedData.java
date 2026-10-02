@@ -41,7 +41,7 @@ public class SeedData {
     }
 
     // Svakog dana u 00:05 dopunjava termine
-    // tako da uvek postoje termini 21 dan unapred.
+    // tako da uvek postoje termini 28 dana unapred.
     @Scheduled(cron = "0 5 0 * * *", zone = "Europe/Belgrade")
     public void scheduledSeed() {
         generateSlots();
@@ -88,7 +88,7 @@ public class SeedData {
     private void generateSlots() {
 
         LocalDate today = LocalDate.now(BELGRADE_ZONE);
-        LocalDate lastDay = today.plusDays(21);
+        LocalDate lastDay = today.plusDays(28);
         LocalDateTime now = LocalDateTime.now(BELGRADE_ZONE);
 
         List<LessonSlot> newSlots = new ArrayList<>();
