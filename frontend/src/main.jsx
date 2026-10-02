@@ -40,9 +40,12 @@ const days = [
   { key: 6, label: 'Subota' }
 ];
 
-const times = ['10:00', '11:45', '13:30', '15:15', '17:00', '18:45'];
+const OLD_SCHEDULE_END = new Date(2026, 9, 18, 23, 59, 59);
 
-const timeLabels = {
+const oldTimes = ['10:00', '11:45', '13:30', '15:15', '17:00', '18:45'];
+const newTimes = ['09:30', '11:15', '13:00', '14:45', '16:30', '18:15', '20:00'];
+
+const oldTimeLabels = {
   '10:00': '10:00 — 11:30',
   '11:45': '11:45 — 13:15',
   '13:30': '13:30 — 15:00',
@@ -50,6 +53,20 @@ const timeLabels = {
   '17:00': '17:00 — 18:30',
   '18:45': '18:45 — 20:15'
 };
+
+const newTimeLabels = {
+  '09:30': '09:30 — 11:00',
+  '11:15': '11:15 — 12:45',
+  '13:00': '13:00 — 14:30',
+  '14:45': '14:45 — 16:15',
+  '16:30': '16:30 — 18:00',
+  '18:15': '18:15 — 19:45',
+  '20:00': '20:00 — 21:30'
+};
+
+function usesNewSchedule(date) {
+  return date > OLD_SCHEDULE_END;
+}
 
 function formatDate(iso) {
   return new Intl.DateTimeFormat('sr-RS', {
@@ -189,6 +206,7 @@ function App() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [adminMode, setAdminMode] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
+  const [adminBookings, setAdminBookings] = useState([]);
   const minWeekStart = startOfWeek(new Date());
 const maxWeekStart = addDays(minWeekStart, 21);
 const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -237,10 +255,19 @@ const currentRiddle = riddles[riddleIndex];
   }, [weekStart]);
   
 
+  const displayTimes = useMemo(
+    () => usesNewSchedule(weekStart) ? newTimes : oldTimes,
+    [weekStart]
+  );
+
+  const displayTimeLabels = usesNewSchedule(weekStart)
+    ? newTimeLabels
+    : oldTimeLabels;
+
   const schedule = useMemo(() => {
     const result = {};
 
-    for (const time of times) {
+    for (const time of displayTimes) {
       result[time] = {};
 
       for (const day of weekDays) {
@@ -259,7 +286,7 @@ const currentRiddle = riddles[riddleIndex];
     }
 
     return result;
-  }, [slots, weekDays]);
+  }, [slots, weekDays, displayTimes]);
 
   async function toggleBlock(slot) {
   try {
@@ -459,10 +486,54 @@ async function adminLogin(e) {
 }).then(r => r.json());
 
 setSlots(adminSlots);
-  } catch (err) {
-    setAdminError(err.message);
+
+const bookingsResponse = await fetch(`${API}/api/admin/bookings`, {
+  headers: {
+    'X-Admin-Password': adminPassword
   }
+});
+
+if (!bookingsResponse.ok) {
+  throw new Error('Evidencija rezervacija nije učitana.');
 }
+
+const bookingsData = await bookingsResponse.json();
+setAdminBookings(bookingsData);
+
+} catch (err) {
+  setAdminError(err.message);
+}
+}
+  async function updateAdminBooking(booking, changes) {
+  const updated = {
+    actualDuration: booking.actualDuration ?? booking.duration,
+    actualPrice: booking.actualPrice ?? booking.price,
+    status: booking.status,
+    paid: booking.paid ?? false,
+    ...changes
+  };
+
+  const response = await fetch(`${API}/api/admin/bookings/${booking.id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Admin-Password': adminPassword
+    },
+    body: JSON.stringify(updated)
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Izmena nije sačuvana.');
+  }
+
+  const savedBooking = await response.json();
+
+  setAdminBookings(previous =>
+    previous.map(b => b.id === savedBooking.id ? savedBooking : b)
+  );
+}
+
 
   return (
     <>
@@ -684,9 +755,9 @@ setSlots(adminSlots);
                 </thead>
 
                 <tbody>
-                  {times.map(time => (
+                  {displayTimes.map(time => (
                     <tr key={time}>
-                      <td className="timeCell">{timeLabels[time]}</td>
+                      <td className="timeCell">{displayTimeLabels[time]}</td>
                      {weekDays.map(day => {
  			 const slot = schedule[time][day.dateKey];
  			 const isPast = slot && new Date(slot.startTime) < new Date();
@@ -1039,18 +1110,90 @@ onClick={() => {
   </div>
 </section>
 
-       {adminMode && (
+{adminMode && (
   <section className="section">
-    <h2>Već rezervisani termini</h2>
+    <h2>Evidencija časova</h2>
 
-    <div className="booked">
-      {booked.length ? booked.map(s => (
-        <div key={s.id}>
-          {formatDate(s.startTime)} — rezervisano
-          {s.reservedBy ? ` (${s.reservedBy})` : ''}
-        </div>
-      )) : (
-        <p>Nema rezervisanih termina.</p>
+    <div className="booked" style={{ overflowX: 'auto' }}>
+      <table>
+        <thead>
+          <tr>
+            <th>Datum i vreme</th>
+            <th>Učenik</th>
+            <th>Trajanje</th>
+            <th>Cena</th>
+            <th>Status</th>
+            <th>Plaćanje</th>
+          </tr>
+        </thead>
+        <tbody>
+          {adminBookings.map(b => (
+            <tr key={b.id}>
+              <td>{formatDate(b.startTime)}</td>
+              <td>{b.studentName}</td>
+             <td>
+  <select
+    value={b.actualDuration ?? b.duration}
+    onChange={async e => {
+      try {
+        await updateAdminBooking(b, {
+          actualDuration: Number(e.target.value)
+        });
+      } catch (err) {
+        alert(err.message);
+      }
+    }}
+  >
+    <option value={45}>45 min</option>
+    <option value={60}>60 min</option>
+    <option value={90}>90 min</option>
+  </select>
+</td>
+              <td>
+  <select
+    value={b.actualPrice ?? b.price}
+    onChange={async e => {
+      try {
+        await updateAdminBooking(b, {
+          actualPrice: Number(e.target.value)
+        });
+      } catch (err) {
+        alert(err.message);
+      }
+    }}
+  >
+    {[1000, 1500, 2000, 2500, 3000].map(price => (
+      <option key={price} value={price}>
+        {price} RSD
+      </option>
+    ))}
+  </select>
+</td>
+              <td>{b.status}</td>
+              <td>
+  <select
+    value={b.paid === true ? 'PLACENO' : 'NEPLACENO'}
+    onChange={async e => {
+      try {
+        await updateAdminBooking(b, {
+          paid: e.target.value === 'PLACENO'
+        });
+      } catch (err) {
+        alert(err.message);
+      }
+    }}
+  >
+    <option value="NEPLACENO">Neplaćeno</option>
+    <option value="PLACENO">Plaćeno</option>
+  </select>
+</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {adminBookings.length === 0 && (
+        <p>Nema rezervacija u evidenciji.</p>
       )}
     </div>
   </section>
