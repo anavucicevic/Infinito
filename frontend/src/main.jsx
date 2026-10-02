@@ -16,7 +16,8 @@ import {
   AtSign,
   MessageCircle,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 import './style.css';
 import logo from './assets/logo.png';
@@ -385,7 +386,8 @@ const currentRiddle = riddles[riddleIndex];
       })
       .reduce((sum, booking) => sum + price(booking), 0);
 
-    const totalIncome = incomeBookings
+    const totalPaid = incomeBookings
+      .filter(booking => booking.paid === true)
       .reduce((sum, booking) => sum + price(booking), 0);
 
     const unpaidIncome = incomeBookings
@@ -411,7 +413,7 @@ const currentRiddle = riddles[riddleIndex];
       weeklyIncome,
       monthlyIncome,
       semesterIncome,
-      totalIncome,
+      totalPaid,
       unpaidIncome,
       monthlyIncomeSeries
     };
@@ -686,6 +688,51 @@ async function updateAdminBooking(booking, changes) {
     previous.map(b => b.id === savedBooking.id ? savedBooking : b)
   );
 }
+
+async function deleteAdminBooking(booking) {
+  const confirmed = window.confirm(
+    `Da li sigurno želiš trajno da obrišeš rezervaciju za ${
+      booking.studentName || 'ovog učenika'
+    }?\n\nObrisani termin će nestati iz evidencije i finansijskih proračuna.`
+  );
+
+  if (!confirmed) return;
+
+  const response = await fetch(`${API}/api/admin/bookings/${booking.id}`, {
+    method: 'DELETE',
+    headers: {
+      'X-Admin-Password': adminPassword
+    }
+  });
+
+  if (!response.ok) {
+    let message = 'Rezervacija nije obrisana.';
+
+    try {
+      const error = await response.json();
+      message = error.message || message;
+    } catch {
+      // Ako backend ne vrati JSON, zadržavamo podrazumevanu poruku.
+    }
+
+    throw new Error(message);
+  }
+
+  setAdminBookings(previous =>
+    previous.filter(b => b.id !== booking.id)
+  );
+
+  const freshSlots = await fetch(`${API}/api/admin/slots`, {
+    headers: {
+      'X-Admin-Password': adminPassword
+    }
+  });
+
+  if (freshSlots.ok) {
+    setSlots(await freshSlots.json());
+  }
+}
+
 
 
   return (
@@ -1281,8 +1328,8 @@ onClick={() => {
         <strong>{adminStats.semesterIncome.toLocaleString('sr-RS')} RSD</strong>
       </div>
       <div className="adminStatCard">
-        <span>Ukupno evidentirano</span>
-        <strong>{adminStats.totalIncome.toLocaleString('sr-RS')} RSD</strong>
+        <span>Ukupno naplaćeno</span>
+        <strong>{adminStats.totalPaid.toLocaleString('sr-RS')} RSD</strong>
       </div>
       <div className="adminStatCard">
         <span>Za naplatu</span>
@@ -1372,6 +1419,7 @@ onClick={() => {
             <th>Cena</th>
             <th>Status</th>
             <th>Plaćanje</th>
+            <th>Obriši</th>
           </tr>
         </thead>
         <tbody>
@@ -1455,6 +1503,23 @@ onClick={() => {
     <option value="PLACENO">Plaćeno</option>
   </select>
 </td>
+              <td>
+                <button
+                  type="button"
+                  className="adminDeleteButton"
+                  title="Trajno obriši rezervaciju"
+                  aria-label={`Obriši rezervaciju za ${b.studentName || 'učenika'}`}
+                  onClick={async () => {
+                    try {
+                      await deleteAdminBooking(b);
+                    } catch (err) {
+                      alert(err.message);
+                    }
+                  }}
+                >
+                  <Trash2 size={18} />
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

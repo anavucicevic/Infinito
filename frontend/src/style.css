@@ -1824,3 +1824,51 @@ footer h3{
   }
 }
 
+/* =========================================================
+   ADMIN — BRISANJE REZERVACIJE
+   ========================================================= */
+
+.adminDeleteButton{
+  width:42px;
+  height:42px;
+  border:1px solid #f0c4c4;
+  border-radius:13px;
+  background:#fff5f5;
+  color:#a83232;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  transition:.18s ease;
+}
+
+.adminDeleteButton:hover{
+  background:#a83232;
+  color:white;
+  border-color:#a83232;
+  transform:translateY(-2px);
+  box-shadow:0 8px 18px rgba(168,50,50,.18);
+}
+
+.adminDeleteButton:active{
+  transform:translateY(0);
+}
+
+.adminDeleteButton:focus-visible{
+  outline:none;
+  box-shadow:0 0 0 4px rgba(168,50,50,.14);
+}
+
+.adminDeleteButton svg{
+  width:18px;
+  height:18px;
+  stroke-width:2.2;
+}
+
+.booked th:last-child,
+.booked td:last-child{
+  width:74px;
+  min-width:74px;
+  text-align:center;
+}
+

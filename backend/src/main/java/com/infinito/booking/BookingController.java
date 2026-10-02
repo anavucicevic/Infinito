@@ -429,6 +429,98 @@ public class BookingController {
         );
     }
 
+    @DeleteMapping("/admin/bookings/{id}")
+    public ResponseEntity<?> deleteAdminBooking(
+            @PathVariable Long id,
+            @RequestHeader(
+                    value = "X-Admin-Password",
+                    required = false
+            )
+            String password
+    ) {
+
+        if (password == null
+                || !password.equals(adminPassword)) {
+            return ResponseEntity.status(401).body(
+                    Map.of(
+                            "message",
+                            "Pogrešna admin lozinka."
+                    )
+            );
+        }
+
+        Optional<Booking> found =
+                bookings.findById(id);
+
+        if (found.isEmpty()) {
+            return ResponseEntity.status(404).body(
+                    Map.of(
+                            "message",
+                            "Rezervacija nije pronađena."
+                    )
+            );
+        }
+
+        Booking booking = found.get();
+
+        /*
+         * Slot menjamo samo ako zaista pripada Booking-u koji brišemo.
+         * Ovo je važno zbog starih/test podataka kod kojih više Booking
+         * zapisa može imati isto vreme.
+         */
+        Optional<LessonSlot> ownedSlot =
+                slots.findAll()
+                        .stream()
+                        .filter(slot ->
+                                Objects.equals(
+                                        slot.bookingId,
+                                        booking.id
+                                )
+                        )
+                        .findFirst();
+
+        if (ownedSlot.isPresent()) {
+            LessonSlot lessonSlot =
+                    ownedSlot.get();
+
+            lessonSlot.booked = false;
+            lessonSlot.status = null;
+            lessonSlot.reservedBy = null;
+            lessonSlot.price = null;
+            lessonSlot.bookingId = null;
+
+            slots.save(lessonSlot);
+        }
+
+        /*
+         * Ako rezervacija ima Google Calendar događaj, pokušavamo da ga
+         * uklonimo. Eventualna Calendar greška ne sprečava brisanje
+         * starog ili test zapisa iz evidencije.
+         */
+        if (booking.calendarEventId != null
+                && !booking.calendarEventId.isBlank()) {
+            try {
+                calendar.deleteEvent(booking.calendarEventId);
+            } catch (Exception e) {
+                System.err.println(
+                        "Calendar događaj nije obrisan: "
+                                + e.getMessage()
+                );
+            }
+        }
+
+        bookings.delete(booking);
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "message",
+                        "Rezervacija je trajno obrisana iz evidencije.",
+                        "id",
+                        id
+                )
+        );
+    }
+
     @PatchMapping("/admin/bookings/{id}")
     public ResponseEntity<?> updateAdminBooking(
             @PathVariable Long id,
