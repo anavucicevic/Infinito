@@ -3,10 +3,12 @@ package com.infinito.booking;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.Scheduled;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -15,74 +17,92 @@ import java.util.Set;
 @Configuration
 public class SeedData {
 
+    private static final ZoneId BELGRADE_ZONE =
+            ZoneId.of("Europe/Belgrade");
+
+    private final LessonSlotRepository repo;
+
+    public SeedData(LessonSlotRepository repo) {
+        this.repo = repo;
+    }
+
+    // Generisanje termina pri svakom pokretanju backenda.
     @Bean
-    CommandLineRunner seed(LessonSlotRepository repo) {
-        return args -> {
+    CommandLineRunner seed() {
+        return args -> generateSlots();
+    }
 
-            LocalDate today = LocalDate.now();
-            LocalDate lastDay = today.plusDays(21);
-            LocalDateTime now = LocalDateTime.now();
+    // Svakog dana u 00:05 proverava i dopunjava termine
+    // tako da uvek postoje termini 21 dan unapred.
+    @Scheduled(cron = "0 5 0 * * *", zone = "Europe/Belgrade")
+    public void scheduledSeed() {
+        generateSlots();
+    }
 
-            List<LessonSlot> newSlots = new ArrayList<>();
+    private void generateSlots() {
 
-            Set<LocalDateTime> existingStartTimes = new HashSet<>();
+        LocalDate today = LocalDate.now(BELGRADE_ZONE);
+        LocalDate lastDay = today.plusDays(21);
+        LocalDateTime now = LocalDateTime.now(BELGRADE_ZONE);
 
-            repo.findAll().forEach(slot ->
-                    existingStartTimes.add(slot.startTime)
-            );
+        List<LessonSlot> newSlots = new ArrayList<>();
+        Set<LocalDateTime> existingStartTimes = new HashSet<>();
 
-            LocalDate date = today;
+        repo.findAll().forEach(slot ->
+                existingStartTimes.add(slot.startTime)
+        );
 
-            while (!date.isAfter(lastDay)) {
+        LocalDate date = today;
 
-                DayOfWeek day = date.getDayOfWeek();
+        while (!date.isAfter(lastDay)) {
 
-                switch (day) {
+            DayOfWeek day = date.getDayOfWeek();
 
-                    case MONDAY, WEDNESDAY, FRIDAY ->
-                            addDay(
-                                    newSlots,
-                                    date,
-                                    true,
-                                    false,
-                                    existingStartTimes,
-                                    now
-                            );
+            switch (day) {
 
-                    case TUESDAY, THURSDAY ->
-                            addDay(
-                                    newSlots,
-                                    date,
-                                    false,
-                                    false,
-                                    existingStartTimes,
-                                    now
-                            );
+                case MONDAY, WEDNESDAY, FRIDAY ->
+                        addDay(
+                                newSlots,
+                                date,
+                                true,
+                                false,
+                                existingStartTimes,
+                                now
+                        );
 
-                    case SATURDAY ->
-                            addDay(
-                                    newSlots,
-                                    date,
-                                    false,
-                                    true,
-                                    existingStartTimes,
-                                    now
-                            );
+                case TUESDAY, THURSDAY ->
+                        addDay(
+                                newSlots,
+                                date,
+                                false,
+                                false,
+                                existingStartTimes,
+                                now
+                        );
 
-                    default -> {
-                        // Nedeljom nema časova.
-                    }
+                case SATURDAY ->
+                        addDay(
+                                newSlots,
+                                date,
+                                false,
+                                true,
+                                existingStartTimes,
+                                now
+                        );
+
+                default -> {
+                    // Nedeljom nema časova.
                 }
-
-                date = date.plusDays(1);
             }
 
-            repo.saveAll(newSlots);
+            date = date.plusDays(1);
+        }
 
-            System.out.println(
-                    "Generisano novih termina: " + newSlots.size()
-            );
-        };
+        repo.saveAll(newSlots);
+
+        System.out.println(
+                "Generisano novih termina: " + newSlots.size()
+        );
     }
 
     static void addDay(
