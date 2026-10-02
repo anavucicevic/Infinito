@@ -207,6 +207,9 @@ function App() {
   const [adminMode, setAdminMode] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [adminBookings, setAdminBookings] = useState([]);
+  const [adminSearch, setAdminSearch] = useState('');
+  const [adminStatusFilter, setAdminStatusFilter] = useState('SVI');
+  const [adminPeriodFilter, setAdminPeriodFilter] = useState('SVI');
   const minWeekStart = startOfWeek(new Date());
 const maxWeekStart = addDays(minWeekStart, 21);
 const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -263,6 +266,156 @@ const currentRiddle = riddles[riddleIndex];
   const displayTimeLabels = usesNewSchedule(weekStart)
     ? newTimeLabels
     : oldTimeLabels;
+
+  const filteredAdminBookings = useMemo(() => {
+    const search = adminSearch.trim().toLocaleLowerCase('sr-RS');
+    const now = new Date();
+
+    const startOfCurrentWeek = startOfWeek(now);
+    const endOfCurrentWeek = addDays(startOfCurrentWeek, 7);
+
+    const startOfCurrentMonth = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1
+    );
+    const startOfNextMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      1
+    );
+
+    const semesterStart =
+      now.getMonth() >= 8
+        ? new Date(now.getFullYear(), 8, 1)
+        : new Date(now.getFullYear(), 0, 1);
+
+    const semesterEnd =
+      now.getMonth() >= 8
+        ? new Date(now.getFullYear() + 1, 0, 1)
+        : new Date(now.getFullYear(), 6, 1);
+
+    return adminBookings.filter(booking => {
+      const bookingDate = new Date(booking.startTime);
+
+      const matchesSearch =
+        !search ||
+        (booking.studentName || '').toLocaleLowerCase('sr-RS').includes(search) ||
+        (booking.email || '').toLocaleLowerCase('sr-RS').includes(search) ||
+        (booking.topic || '').toLocaleLowerCase('sr-RS').includes(search);
+
+      const matchesStatus =
+        adminStatusFilter === 'SVI' ||
+        booking.status === adminStatusFilter;
+
+      let matchesPeriod = true;
+
+      if (adminPeriodFilter === 'NEDELJA') {
+        matchesPeriod =
+          bookingDate >= startOfCurrentWeek &&
+          bookingDate < endOfCurrentWeek;
+      }
+
+      if (adminPeriodFilter === 'MESEC') {
+        matchesPeriod =
+          bookingDate >= startOfCurrentMonth &&
+          bookingDate < startOfNextMonth;
+      }
+
+      if (adminPeriodFilter === 'POLUGODISTE') {
+        matchesPeriod =
+          bookingDate >= semesterStart &&
+          bookingDate < semesterEnd;
+      }
+
+      return matchesSearch && matchesStatus && matchesPeriod;
+    });
+  }, [
+    adminBookings,
+    adminSearch,
+    adminStatusFilter,
+    adminPeriodFilter
+  ]);
+
+  const adminStats = useMemo(() => {
+    const now = new Date();
+    const weekStartDate = startOfWeek(now);
+    const weekEndDate = addDays(weekStartDate, 7);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    const countsAsIncome = booking =>
+      booking.status === 'ODRZANO' ||
+      booking.status === 'KASNO_OTKAZANO' ||
+      booking.status === 'NIJE_DOSAO';
+
+    const price = booking =>
+      Number(booking.actualPrice ?? booking.price ?? 0);
+
+    const incomeBookings = adminBookings.filter(countsAsIncome);
+
+    const weeklyIncome = incomeBookings
+      .filter(booking => {
+        const date = new Date(booking.startTime);
+        return date >= weekStartDate && date < weekEndDate;
+      })
+      .reduce((sum, booking) => sum + price(booking), 0);
+
+    const monthlyIncome = incomeBookings
+      .filter(booking => {
+        const date = new Date(booking.startTime);
+        return date >= monthStart && date < nextMonthStart;
+      })
+      .reduce((sum, booking) => sum + price(booking), 0);
+
+    const semesterStart =
+      now.getMonth() >= 8
+        ? new Date(now.getFullYear(), 8, 1)
+        : new Date(now.getFullYear(), 0, 1);
+
+    const semesterEnd =
+      now.getMonth() >= 8
+        ? new Date(now.getFullYear() + 1, 0, 1)
+        : new Date(now.getFullYear(), 6, 1);
+
+    const semesterIncome = incomeBookings
+      .filter(booking => {
+        const date = new Date(booking.startTime);
+        return date >= semesterStart && date < semesterEnd;
+      })
+      .reduce((sum, booking) => sum + price(booking), 0);
+
+    const totalIncome = incomeBookings
+      .reduce((sum, booking) => sum + price(booking), 0);
+
+    const unpaidIncome = incomeBookings
+      .filter(booking => booking.paid !== true)
+      .reduce((sum, booking) => sum + price(booking), 0);
+
+    const monthlyIncomeSeries = Array.from({ length: 12 }, (_, month) => {
+      const start = new Date(now.getFullYear(), month, 1);
+      const end = new Date(now.getFullYear(), month + 1, 1);
+
+      return {
+        label: new Intl.DateTimeFormat('sr-RS', { month: 'short' }).format(start),
+        value: incomeBookings
+          .filter(booking => {
+            const date = new Date(booking.startTime);
+            return date >= start && date < end;
+          })
+          .reduce((sum, booking) => sum + price(booking), 0)
+      };
+    });
+
+    return {
+      weeklyIncome,
+      monthlyIncome,
+      semesterIncome,
+      totalIncome,
+      unpaidIncome,
+      monthlyIncomeSeries
+    };
+  }, [adminBookings]);
 
   const schedule = useMemo(() => {
     const result = {};
@@ -504,11 +657,11 @@ setAdminBookings(bookingsData);
   setAdminError(err.message);
 }
 }
-  async function updateAdminBooking(booking, changes) {
+async function updateAdminBooking(booking, changes) {
   const updated = {
-    actualDuration: booking.actualDuration ?? booking.duration,
-    actualPrice: booking.actualPrice ?? booking.price,
-    status: booking.status,
+    actualDuration: booking.actualDuration ?? booking.duration ?? 90,
+    actualPrice: booking.actualPrice ?? booking.price ?? 2000,
+    status: booking.status || 'ZAKAZANO',
     paid: booking.paid ?? false,
     ...changes
   };
@@ -1114,6 +1267,101 @@ onClick={() => {
   <section className="section">
     <h2>Evidencija časova</h2>
 
+    <div className="adminStatsGrid">
+      <div className="adminStatCard">
+        <span>Ova nedelja</span>
+        <strong>{adminStats.weeklyIncome.toLocaleString('sr-RS')} RSD</strong>
+      </div>
+      <div className="adminStatCard">
+        <span>Ovaj mesec</span>
+        <strong>{adminStats.monthlyIncome.toLocaleString('sr-RS')} RSD</strong>
+      </div>
+      <div className="adminStatCard">
+        <span>Ovo polugodište</span>
+        <strong>{adminStats.semesterIncome.toLocaleString('sr-RS')} RSD</strong>
+      </div>
+      <div className="adminStatCard">
+        <span>Ukupno evidentirano</span>
+        <strong>{adminStats.totalIncome.toLocaleString('sr-RS')} RSD</strong>
+      </div>
+      <div className="adminStatCard">
+        <span>Za naplatu</span>
+        <strong>{adminStats.unpaidIncome.toLocaleString('sr-RS')} RSD</strong>
+      </div>
+    </div>
+
+    <div className="adminChartCard">
+      <div className="adminChartHead">
+        <div>
+          <span>Zarada po mesecima</span>
+          <strong>{new Date().getFullYear()}.</strong>
+        </div>
+      </div>
+
+      <div className="adminBarChart">
+        {adminStats.monthlyIncomeSeries.map(item => {
+          const maxValue = Math.max(
+            1,
+            ...adminStats.monthlyIncomeSeries.map(month => month.value)
+          );
+
+          const height =
+            item.value === 0
+              ? 0
+              : Math.max(8, (item.value / maxValue) * 100);
+
+          return (
+            <div className="adminBarColumn" key={item.label}>
+              <div className="adminBarValue">
+                {item.value > 0
+                  ? `${item.value.toLocaleString('sr-RS')}`
+                  : ''}
+              </div>
+              <div className="adminBarTrack">
+                <div
+                  className="adminBar"
+                  style={{ height: `${height}%` }}
+                />
+              </div>
+              <span>{item.label}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+
+    <div className="adminFilters">
+      <input
+        type="search"
+        placeholder="Pretraži učenika, email ili oblast..."
+        value={adminSearch}
+        onChange={e => setAdminSearch(e.target.value)}
+      />
+
+      <select
+        value={adminStatusFilter}
+        onChange={e => setAdminStatusFilter(e.target.value)}
+      >
+        <option value="SVI">Svi statusi</option>
+        <option value="ZAKAZANO">Zakazano</option>
+        <option value="ODRZANO">Održano</option>
+        <option value="OTKAZANO_NA_VREME">Otkazano na vreme</option>
+        <option value="KASNO_OTKAZANO">Kasno otkazano</option>
+        <option value="NIJE_DOSAO">Nije došao/la</option>
+        <option value="OTKAZANO">Otkazano (stari status)</option>
+      </select>
+
+      <select
+        value={adminPeriodFilter}
+        onChange={e => setAdminPeriodFilter(e.target.value)}
+      >
+        <option value="SVI">Svi periodi</option>
+        <option value="NEDELJA">Ova nedelja</option>
+        <option value="MESEC">Ovaj mesec</option>
+        <option value="POLUGODISTE">Ovo polugodište</option>
+      </select>
+    </div>
+
     <div className="booked" style={{ overflowX: 'auto' }}>
       <table>
         <thead>
@@ -1127,7 +1375,7 @@ onClick={() => {
           </tr>
         </thead>
         <tbody>
-          {adminBookings.map(b => (
+          {filteredAdminBookings.map(b => (
             <tr key={b.id}>
               <td>{formatDate(b.startTime)}</td>
               <td>{b.studentName}</td>
@@ -1169,7 +1417,27 @@ onClick={() => {
     ))}
   </select>
 </td>
-              <td>{b.status}</td>
+              <td>
+                <select
+                  value={b.status || 'ZAKAZANO'}
+                  onChange={async e => {
+                    try {
+                      await updateAdminBooking(b, {
+                        status: e.target.value
+                      });
+                    } catch (err) {
+                      alert(err.message);
+                    }
+                  }}
+                >
+                  <option value="ZAKAZANO">Zakazano</option>
+                  <option value="ODRZANO">Održano</option>
+                  <option value="OTKAZANO_NA_VREME">Otkazano na vreme</option>
+                  <option value="KASNO_OTKAZANO">Kasno otkazano</option>
+                  <option value="NIJE_DOSAO">Nije došao/la</option>
+                  <option value="OTKAZANO">Otkazano (stari status)</option>
+                </select>
+              </td>
               <td>
   <select
     value={b.paid === true ? 'PLACENO' : 'NEPLACENO'}
@@ -1192,8 +1460,8 @@ onClick={() => {
         </tbody>
       </table>
 
-      {adminBookings.length === 0 && (
-        <p>Nema rezervacija u evidenciji.</p>
+      {filteredAdminBookings.length === 0 && (
+        <p>Nema rezervacija koje odgovaraju izabranim filterima.</p>
       )}
     </div>
   </section>

@@ -19,6 +19,9 @@ public class Booking {
 
     public Integer price;
     public Integer duration;
+public Integer actualDuration;
+public Integer actualPrice;
+public Boolean paid;
     public boolean online;
 
     public LocalDateTime startTime;

@@ -1564,3 +1564,263 @@ footer h3{
     font-size:18px;
   }
 }
+
+/* =========================================================
+   ADMIN — EVIDENCIJA ČASOVA
+   ========================================================= */
+
+.adminStatsGrid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:18px;
+  margin:26px 0 20px;
+}
+
+.adminStatCard{
+  min-height:130px;
+  padding:24px;
+  border:1px solid rgba(68,67,130,.10);
+  border-radius:26px;
+  background:linear-gradient(145deg,#ffffff 0%,#fff7ed 100%);
+  box-shadow:0 14px 36px rgba(68,67,130,.09);
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:14px;
+}
+
+.adminStatCard span{
+  color:var(--muted);
+  font-size:14px;
+  font-weight:850;
+}
+
+.adminStatCard strong{
+  color:var(--primary);
+  font-size:clamp(22px,2.2vw,32px);
+  line-height:1.1;
+}
+
+.adminFilters{
+  display:grid;
+  grid-template-columns:minmax(260px,1.7fr) minmax(180px,.8fr) minmax(180px,.8fr);
+  gap:12px;
+  margin:0 0 18px;
+}
+
+.adminFilters input,
+.adminFilters select,
+.booked table select{
+  width:100%;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:12px 13px;
+  background:#fffdfb;
+  color:var(--text);
+  font:inherit;
+  font-weight:700;
+  outline:none;
+}
+
+.adminFilters input:focus,
+.adminFilters select:focus,
+.booked table select:focus{
+  border-color:var(--primary);
+  box-shadow:0 0 0 4px rgba(68,67,130,.10);
+}
+
+.booked table{
+  width:100%;
+  min-width:1050px;
+  border-collapse:separate;
+  border-spacing:0;
+}
+
+.booked th{
+  padding:14px 12px;
+  background:var(--primary);
+  color:white;
+  text-align:left;
+  font-size:13px;
+  white-space:nowrap;
+}
+
+.booked th:first-child{
+  border-radius:16px 0 0 16px;
+}
+
+.booked th:last-child{
+  border-radius:0 16px 16px 0;
+}
+
+.booked td{
+  padding:14px 12px;
+  border-bottom:1px solid #f1e3d4;
+  color:var(--text);
+  vertical-align:middle;
+}
+
+.booked tbody tr:hover{
+  background:#fffaf4;
+}
+
+.booked td:first-child{
+  min-width:210px;
+  font-weight:750;
+  color:var(--primary);
+}
+
+.booked td:nth-child(2){
+  min-width:160px;
+  font-weight:850;
+}
+
+.booked table select{
+  min-width:130px;
+  padding:9px 10px;
+  cursor:pointer;
+}
+
+.booked td:nth-child(5) select{
+  min-width:185px;
+}
+
+@media(max-width:1100px){
+  .adminStatsGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .adminFilters{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .adminFilters input{
+    grid-column:1 / -1;
+  }
+}
+
+@media(max-width:720px){
+  .adminStatsGrid{
+    grid-template-columns:1fr;
+    gap:12px;
+  }
+
+  .adminStatCard{
+    min-height:105px;
+    padding:19px;
+  }
+
+  .adminFilters{
+    grid-template-columns:1fr;
+  }
+
+  .adminFilters input{
+    grid-column:auto;
+  }
+
+  .booked{
+    padding:14px;
+  }
+}
+
+/* =========================================================
+   ADMIN — GRAFIK ZARADE
+   ========================================================= */
+
+.adminChartCard{
+  margin:0 0 20px;
+  padding:26px;
+  background:white;
+  border:1px solid rgba(68,67,130,.10);
+  border-radius:28px;
+  box-shadow:0 14px 36px rgba(68,67,130,.09);
+}
+
+.adminChartHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:22px;
+}
+
+.adminChartHead div{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.adminChartHead span{
+  color:var(--muted);
+  font-size:14px;
+  font-weight:850;
+}
+
+.adminChartHead strong{
+  color:var(--primary);
+  font-size:24px;
+}
+
+.adminBarChart{
+  height:270px;
+  display:grid;
+  grid-template-columns:repeat(12,minmax(42px,1fr));
+  gap:10px;
+  align-items:end;
+  overflow-x:auto;
+  padding-top:30px;
+}
+
+.adminBarColumn{
+  height:100%;
+  min-width:42px;
+  display:grid;
+  grid-template-rows:24px 1fr 24px;
+  gap:5px;
+  align-items:end;
+  text-align:center;
+}
+
+.adminBarValue{
+  color:var(--primary);
+  font-size:10px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+.adminBarTrack{
+  height:100%;
+  min-height:160px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  background:var(--secondary-light);
+  border-radius:14px 14px 6px 6px;
+  overflow:hidden;
+}
+
+.adminBar{
+  width:100%;
+  min-height:0;
+  background:linear-gradient(180deg,var(--secondary) 0%,var(--primary) 100%);
+  border-radius:14px 14px 4px 4px;
+  transition:height .25s ease;
+}
+
+.adminBarColumn > span{
+  color:var(--muted);
+  font-size:11px;
+  font-weight:850;
+  text-transform:capitalize;
+}
+
+@media(max-width:720px){
+  .adminChartCard{
+    padding:18px 14px;
+  }
+
+  .adminBarChart{
+    grid-template-columns:repeat(12,52px);
+    gap:8px;
+  }
+}
+
